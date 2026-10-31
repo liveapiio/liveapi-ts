@@ -1,0 +1,49 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { Client, LiveApiError } from "../src/index.ts";
+
+test("validatePhone sends the bearer token and decodes the body", async () => {
+  const client = new Client({
+    token: "test-token",
+    baseUrl: "https://example.test",
+    fetch: async (input, init) => {
+      assert.equal(String(input), "https://example.test/v1/phones/validate");
+      assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-token");
+      assert.equal(init?.method, "POST");
+      return new Response(JSON.stringify({ valid: true, possible: true, reason: null, e164: "+905551112233", national: null, international: null, country: "TR", calling_code: "90", type: "MOBILE" }), { status: 200 });
+    },
+  });
+  const phone = await client.validatePhone("0555 111 22 33", "TR");
+  assert.equal(phone.e164, "+905551112233");
+});
+
+test("rates keeps the TCMB rate list", async () => {
+  const client = new Client({
+    token: "test-token",
+    fetch: async (input) => {
+      assert.match(String(input), /source=tcmb/);
+      return new Response(JSON.stringify({ source: "tcmb", base: "TRY", date: "2025-12-31", fetched_at: "2025-12-31T15:00:00Z", rates: [{ code: "USD", name: "US Dollar", unit: 1, source_unit: 1, forex_buying: 1.1, forex_selling: null, banknote_buying: null, banknote_selling: null }] }), { status: 200 });
+    },
+  });
+  const rates = await client.rates("tcmb");
+  assert.equal(rates.source, "tcmb");
+  assert.equal(rates.rates[0]?.code, "USD");
+});
+
+test("a non-2xx response becomes LiveApiError", async () => {
+  const client = new Client({
+    token: "test-token",
+    fetch: async () => new Response(JSON.stringify({ error: { code: "not_found", message: "No location record for this address." } }), { status: 404 }),
+  });
+  await assert.rejects(client.lookupIp("203.0.113.8"), (error: unknown) => {
+    assert.ok(error instanceof LiveApiError);
+    assert.equal(error.status, 404);
+    assert.equal(error.code, "not_found");
+    return true;
+  });
+});
+
+test("a blank token is rejected before the request", async () => {
+  const client = new Client({ token: "  ", fetch: async () => { throw new Error("should not fetch"); } });
+  await assert.rejects(client.currencies(), (error: unknown) => error instanceof LiveApiError && error.code === "unauthorized");
+});

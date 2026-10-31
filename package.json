@@ -1,0 +1,27 @@
+{
+  "name": "@liveapiio/liveapi",
+  "version": "0.1.0",
+  "description": "TypeScript client for the LiveAPI reference-data API.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc",
+    "test": "node --experimental-strip-types --test test/client.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
