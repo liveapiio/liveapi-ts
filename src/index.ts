@@ -76,6 +76,11 @@ export type IpLocation = {
   source: "cloudflare" | "db-ip" | null;
   attribution: string | null;
   attribution_url: string | null;
+  /** Listed in the Tor exit list. null when the list is not loaded. */
+  is_tor: boolean | null;
+  /** Inside a published cloud or hosting range. null when the data is not loaded. */
+  is_hosting: boolean | null;
+  hosting_provider: string | null;
 };
 export type CallingCode = { country: string; name: string; calling_code: string };
 export type PhoneValidation = {
@@ -199,6 +204,84 @@ export type VatCheck = {
   address: string | null;
   request_date: string;
   source: "vies";
+};
+
+export type IdValidator = {
+  country: string;
+  type: string;
+  name: string;
+  holder: "person" | "entity" | "bank";
+  description: string;
+  example: string;
+  path: string;
+};
+export type IdValidation = {
+  valid: boolean;
+  normalized: string | null;
+  country: string;
+  type: string;
+  reason: string | null;
+  details?: Record<string, unknown>;
+  registry_checked: false;
+};
+export type GeoNamesAttribution = { source: "GeoNames"; url: string; license: "CC BY 4.0" };
+export type PostalCodeCountry = { country: string; count: number; partial: boolean; updated: string };
+export type PostalCodeCountries = { data: PostalCodeCountry[]; attribution: GeoNamesAttribution };
+export type PostalPlace = {
+  postal_code: string;
+  place: string;
+  admin1: string | null;
+  admin1_code: string | null;
+  admin2: string | null;
+  admin2_code: string | null;
+  admin3: string | null;
+  admin3_code: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy: number | null;
+};
+export type PostalCodeLookup = {
+  country: string;
+  query: string;
+  postal_code: string;
+  match: "exact" | "partial";
+  partial_data: boolean;
+  coverage_note: string | null;
+  places: PostalPlace[];
+  updated: string;
+  attribution: GeoNamesAttribution;
+};
+export type ReverseGeocode = {
+  latitude: number;
+  longitude: number;
+  country_code: string;
+  country_name: string | null;
+  admin1: { code: string | null; name: string; type: string | null } | null;
+  admin2: { id: string | null; name: string; type: string | null } | null;
+  precision: "admin2" | "admin1";
+  attribution: string;
+};
+export type UserAgent = {
+  ua: string;
+  browser: { name: string | null; version: string | null; major: string | null };
+  engine: { name: string | null; version: string | null };
+  os: { name: string | null; version: string | null };
+  device: { type: string; vendor: string | null; model: string | null };
+  cpu: { architecture: string | null };
+  is_bot: boolean;
+  bot_match: string | null;
+};
+export type BarcodeValidation = {
+  input: string;
+  normalized: string;
+  valid: boolean;
+  type: "ean8" | "upca" | "ean13" | "gtin14" | "isbn10" | "isbn13" | null;
+  reason: "invalid_characters" | "invalid_length" | "invalid_check_digit" | null;
+  check_digit: string | null;
+  expected_check_digit: string | null;
+  gtin14: string | null;
+  isbn10: string | null;
+  isbn13: string | null;
 };
 
 export type ClientOptions = {
@@ -334,6 +417,40 @@ export class Client {
 
   validateVat(vatNumber: string, country?: string): Promise<VatCheck> {
     return this.json("POST", "/v1/vat/validate", { body: country ? { vat_number: vatNumber, country } : { vat_number: vatNumber } });
+  }
+
+  /** Lists the national ID, tax and company number checks. */
+  async idValidators(): Promise<IdValidator[]> {
+    const body = await this.json<{ data: IdValidator[] }>("GET", "/v1/validate");
+    return body.data;
+  }
+
+  /** Checks a national number offline, for example ("ES", "nif", "12345678Z"). */
+  validateId(country: string, type: string, value: string): Promise<IdValidation> {
+    return this.json("POST", `/v1/validate/${encodeURIComponent(country)}/${encodeURIComponent(type)}`, { body: { value } });
+  }
+
+  postalCodeCountries(): Promise<PostalCodeCountries> {
+    return this.json("GET", "/v1/postal-codes");
+  }
+
+  postalCode(country: string, code: string): Promise<PostalCodeLookup> {
+    return this.json("GET", `/v1/postal-codes/${encodeURIComponent(country)}/${encodeURIComponent(code)}`);
+  }
+
+  /** Country and administrative area for a point. */
+  reverseGeocode(latitude: number, longitude: number): Promise<ReverseGeocode> {
+    return this.json("GET", "/v1/reverse", { query: { lat: latitude, lon: longitude } });
+  }
+
+  /** Parses a User-Agent string (for example one your server received). */
+  parseUserAgent(ua: string): Promise<UserAgent> {
+    return this.json("POST", "/v1/user-agent", { body: { ua } });
+  }
+
+  /** Checks the check digit of an EAN-8, UPC-A, EAN-13, GTIN-14 or ISBN. */
+  validateBarcode(code: string): Promise<BarcodeValidation> {
+    return this.json("GET", "/v1/barcodes/validate", { query: { code } });
   }
 
   private async json<T>(method: string, path: string, options?: { query?: Record<string, string | number | undefined>; body?: unknown }): Promise<T> {

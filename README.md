@@ -15,6 +15,18 @@ const phone = await client.validatePhone("0555 111 22 33", "TR");
 npm install github:liveapiio/liveapi-ts
 ```
 
+Methods: IP (`callerIp`, `lookupIp`, `callerField`, `lookupField`), countries and divisions, `currencies`, phones, plates, `rates`, `convert`, `distance`, `reverseGeocode`, `validateIban`, `validateIdentity`, `validateTaxNumber`, `idValidators`, `validateId`, `postalCodeCountries`, `postalCode`, `holidays`, `businessDays`, `timezone`, `validateEmail`, `validateVat`, `parseUserAgent`, `validateBarcode`.
+
+```ts
+await client.validateId("ES", "nif", "12345678Z");   // national ID / tax number checks
+await client.validateBarcode("4006381333931");       // EAN / UPC / GTIN / ISBN
+await client.postalCode("DE", "10115");              // GeoNames, CC BY 4.0
+await client.reverseGeocode(41.01, 28.97);
+await client.parseUserAgent(req.headers["user-agent"]);
+```
+
+IP results also carry `is_tor`, `is_hosting` and `hosting_provider`.
+
 Docs: https://liveapi.io/docs
 
-IP lookups include `attribution` and `attribution_url`. Keep those fields when you store or show a DB-IP result. A validation result with `valid: false` is still HTTP 200 and uses one call. Only a non-2xx response is free.
+IP lookups include `attribution` and `attribution_url`. Keep those fields when you store or show a DB-IP result. Postal-code results carry a GeoNames `attribution` (CC BY 4.0); keep it too. A validation result with `valid: false` is still HTTP 200 and uses one call. Only a non-2xx response is free.
