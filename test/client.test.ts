@@ -48,6 +48,17 @@ test("a blank token is rejected before the request", async () => {
   await assert.rejects(client.currencies(), (error: unknown) => error instanceof LiveApiError && error.code === "unauthorized");
 });
 
+test("country can request its geoshape without changing the default call", async () => {
+  const paths: string[] = [];
+  const client = new Client({ token: "test-token", baseUrl: "https://example.test", fetch: async (input) => {
+    paths.push(String(input));
+    return new Response(JSON.stringify({ code: "TR", geoshape: { type: "Polygon", coordinates: [] } }));
+  } });
+  await client.country("TR");
+  await client.country("TR", true);
+  assert.deepEqual(paths, ["https://example.test/v1/countries/TR", "https://example.test/v1/countries/TR?include=geoshape"]);
+});
+
 test("validateId posts the value to the country and type path", async () => {
   const client = new Client({
     token: "test-token",

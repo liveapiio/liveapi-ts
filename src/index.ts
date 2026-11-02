@@ -12,6 +12,10 @@ export class LiveApiError extends Error {
 
 export type Currency = { code: string; name: string; symbol: string | null };
 export type Language = { code: string; name: string };
+export type GeoShape =
+  | { type: "Polygon"; coordinates: number[][][] }
+  | { type: "MultiPolygon"; coordinates: number[][][][] };
+export type GeoShapeAttribution = { source: string | null; url: string | null; license: string | null };
 export type Country = {
   code: string;
   iso3: string;
@@ -32,6 +36,8 @@ export type Country = {
   languages: Language[];
   calling_code: string | null;
   in_eu: boolean;
+  geoshape?: GeoShape | null;
+  geoshape_attribution?: GeoShapeAttribution;
 };
 export type Division = {
   id: string;
@@ -224,7 +230,7 @@ export type IdValidation = {
   details?: Record<string, unknown>;
   registry_checked: false;
 };
-export type GeoNamesAttribution = { source: "GeoNames"; url: string; license: "CC BY 4.0" };
+export type GeoNamesAttribution = { source: "LiveAPI"; url: "https://liveapi.io/"; license: "Proprietary" };
 export type PostalCodeCountry = { country: string; count: number; partial: boolean; updated: string };
 export type PostalCodeCountries = { data: PostalCodeCountry[]; attribution: GeoNamesAttribution };
 export type PostalPlace = {
@@ -322,8 +328,8 @@ export class Client {
     return this.json("GET", "/v1/countries", { query: { q: query } });
   }
 
-  country(code: string): Promise<Country> {
-    return this.json("GET", `/v1/countries/${encodeURIComponent(code)}`);
+  country(code: string, includeGeoshape = false): Promise<Country> {
+    return this.json("GET", `/v1/countries/${encodeURIComponent(code)}`, { query: { include: includeGeoshape ? "geoshape" : undefined } });
   }
 
   divisions(country: string): Promise<Division[]> {
